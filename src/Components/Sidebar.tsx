@@ -1,11 +1,18 @@
 
 import { PlusSquare, Link2, Users, Shapes, ArrowLeftRight, Trash2 } from "lucide-react";
+import type React from "react";
 
-export const Sidebar = () => {
+interface SidebarProps {
+	onAddNode?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({ onAddNode }) => {
 	return (
 		<aside className="h-full min-h-screen w-16 sm:w-56 bg-white border-r shadow-md flex flex-col items-center py-6 gap-6 fixed top-0 left-0 z-40 transition-all">
 			<div className="flex flex-col items-center gap-4 w-full">
-				<button className="flex items-center gap-2 w-full px-2 py-2 rounded-lg hover:bg-blue-50 transition-colors group">
+				<button
+					onClick={onAddNode}
+					className="flex items-center gap-2 w-full px-2 py-2 rounded-lg hover:bg-blue-50 transition-colors group">
 					<PlusSquare className="w-5 h-5 text-blue-600" />
 					<span className="hidden sm:inline text-gray-700 group-hover:text-blue-700 font-medium">Agregar Clase</span>
 				</button>

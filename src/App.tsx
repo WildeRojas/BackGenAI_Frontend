@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from './Components/Navbar';
 import { Sidebar } from './Components/Sidebar';
 import { Perfil } from './Pages/Perfil';
-import { Diseño } from './Pages/Diseño';
+import { Diagrama } from './Pages/Diagrama';
 
 function App() {
   return (
@@ -14,7 +14,7 @@ function App() {
           <Navbar />
           <main className="p-4 pt-8">
             <Routes>
-              <Route path="/" element={<Diseño />} />
+              <Route path="/" element={<Diagrama />} />
               <Route path="/perfil" element={<Perfil />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
