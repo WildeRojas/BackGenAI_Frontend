@@ -12,16 +12,21 @@ import {
 
 import type { Connection, Edge, Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css"
+import { ClassNode } from "./Node";
 
 const initialNodes: Node[] = [{
     id: '1',
-    type: 'input',
+    type: 'classNode',
     position: { x: 200, y: 150 },
     data: { label: 'ClaseUsuario' },
 },];
-import { Sidebar } from "../Components/Sidebar";
+import { Sidebar } from "../../Components/Sidebar";
 
 const initialEdges: Edge[] = [];
+
+const nodeTypes = {
+    classNode: ClassNode,
+}
 
 export const Diagrama: React.FC = () => {
     const [nodes, SetNodes, onNodesChange] = useNodesState(initialNodes);
@@ -30,7 +35,7 @@ export const Diagrama: React.FC = () => {
     const addNode = () => {
         const newNode: Node = {
             id: (nodes.length + 1).toString(),
-            type: 'default',
+            type: 'classNode',
             position: { x: Math.random() * 400, y: Math.random() * 400 },
             data: { label: `Clase${nodes.length + 1}` },
         };
@@ -40,8 +45,7 @@ export const Diagrama: React.FC = () => {
     const onConnect = useCallback(
         (params: Edge | Connection) => SetEdges((eds) => addEdge(params, eds)),
         [SetEdges]
-    );
-
+    ); 
 
     return (
         <div style={{ width: "100%", height: "100vh" }}>
@@ -52,6 +56,7 @@ export const Diagrama: React.FC = () => {
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
+                nodeTypes={nodeTypes}
                 fitView
             >
                 {/* Herramientas */}

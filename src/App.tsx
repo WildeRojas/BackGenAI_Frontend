@@ -2,8 +2,8 @@ import './App.css';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from './Components/Navbar';
 import { Sidebar } from './Components/Sidebar';
-import { Perfil } from './Pages/Perfil';
-import { Diagrama } from './Pages/Diagrama';
+import { Perfil } from './Pages/Pefil_User/Perfil';
+import { Diagrama } from './Pages/Diagramador/Diagrama';
 
 function App() {
   return (
