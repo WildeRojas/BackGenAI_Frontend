@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { NodeProps } from "@xyflow/react";
+import { Handle, Position } from "@xyflow/react";
 
 interface Attribe {
   name: string;
@@ -26,7 +27,29 @@ export const ClassNode: React.FC<NodeProps> = ({ data }) => {
   }
 
   return (
-    <div className="bg-white border-2 border-gray-400 rounded-lg shadow-md min-w-[220px]">
+    <div className="bg-white border-2 border-gray-400 rounded-lg shadow-md min-w-[220px] relative">
+      {/* Handles para conectar */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="w-3 h-3 !bg-blue-500 !border-2 !border-white"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="w-3 h-3 !bg-blue-500 !border-2 !border-white"
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="w-3 h-3 !bg-blue-500 !border-2 !border-white"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="w-3 h-3 !bg-blue-500 !border-2 !border-white"
+      />
+
       {/* Nombre de la clase */}
       <div className="bg-gray-200 px-3 py-1 font-bold text-center border-b">
         <input

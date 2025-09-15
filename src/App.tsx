@@ -1,26 +1,93 @@
+import { useState, useEffect } from 'react';
+import type { ReactElement } from 'react';
 import './App.css';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Navbar } from './Components/Navbar';
 import { Sidebar } from './Components/Sidebar';
-import { Perfil } from './Pages/Pefil_User/Perfil';
+import ProfilePage from './Pages/Perfil';
 import { Diagrama } from './Pages/Diagramador/Diagrama';
+import LoginPage from './Pages/LoginPage';
+import RegisterPage from './Pages/Register';
+
+// Componente de wrapper para proteger rutas
+const ProtectedRoute = ({ children }: { children: ReactElement }) => {
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const location = useLocation();
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+};
+
+// Componente de layout para páginas autenticadas
+const AuthenticatedLayout = ({ children }: { children: ReactElement }) => {
+  return (
+    <div className="flex">
+      <Sidebar />
+      <div className="flex-1 ml-16 sm:ml-56 min-h-screen bg-gray-50">
+        <Navbar />
+        <main className="p-4 pt-8">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+};
 
 function App() {
+  // Estado para revisar si estamos autenticados
+  const [checking, setChecking] = useState(true);
+  
+  useEffect(() => {
+    // Simulación de revisión de autenticación
+    setTimeout(() => {
+      setChecking(false);
+    }, 500);
+  }, []);
+
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
-      <div className="flex">
-        <Sidebar />
-        <div className="flex-1 ml-16 sm:ml-56 min-h-screen bg-gray-50">
-          <Navbar />
-          <main className="p-4 pt-8">
-            <Routes>
-              <Route path="/" element={<Diagrama />} />
-              <Route path="/perfil" element={<Perfil />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </main>
-        </div>
-      </div>
+      <Routes>
+        {/* Rutas públicas */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        
+        {/* Rutas protegidas */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <Navigate to="/disenio" replace />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/disenio" element={
+          <ProtectedRoute>
+            <AuthenticatedLayout>
+              <Diagrama />
+            </AuthenticatedLayout>
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/perfil" element={
+          <ProtectedRoute>
+            <AuthenticatedLayout>
+              <ProfilePage />
+            </AuthenticatedLayout>
+          </ProtectedRoute>
+        } />
+        
+        {/* Redireccionar rutas desconocidas */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }
