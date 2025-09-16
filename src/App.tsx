@@ -4,10 +4,10 @@ import './App.css';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Navbar } from './Components/Navbar';
 import { Sidebar } from './Components/Sidebar';
-import ProfilePage from './Pages/Perfil';
+import ProfilePage from './Pages/Authentication/Perfil';
 import { Diagrama } from './Pages/Diagramador/Diagrama';
-import LoginPage from './Pages/LoginPage';
-import RegisterPage from './Pages/Register';
+import LoginPage from './Pages/Authentication/LoginPage';
+import RegisterPage from './Pages/Authentication/Register';
 
 // Componente de wrapper para proteger rutas
 const ProtectedRoute = ({ children }: { children: ReactElement }) => {

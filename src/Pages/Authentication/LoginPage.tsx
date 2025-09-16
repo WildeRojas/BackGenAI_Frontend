@@ -1,34 +1,43 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, LogIn } from 'lucide-react';
+import { User,Lock, LogIn } from 'lucide-react';
+import { login } from '../../Services/authentication/login';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validación básica
     if (!email || !password) {
       setErrorMessage('Por favor complete todos los campos');
       return;
     }
-    
-    // TODO: Implementar autenticación real
-    console.log('Logging in with:', { email, password, rememberMe });
-    
-    // Simular login exitoso
-    localStorage.setItem('isLoggedIn', 'true');
-    navigate('/disenio');
+
+    try {
+      const response = await login(email, password);
+      console.log('Login successful:', response);
+      localStorage.setItem('access', response.access);
+      localStorage.setItem('refresh', response.refresh);
+      navigate('/disenio');
+    } catch (error) {
+      console.error('Login failed:', error);
+      setErrorMessage('Credenciales inválidas');
+    }
   };
 
   const handleRegister = () => {
     navigate('/register');
   };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -37,14 +46,14 @@ const LoginPage: React.FC = () => {
           <h1 className="text-white text-2xl font-bold">Diagramador UML</h1>
           <p className="text-indigo-200 mt-1">Inicia sesión para acceder a tus diagramas</p>
         </div>
-        
+
         <div className="p-6">
           {errorMessage && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">
               {errorMessage}
             </div>
           )}
-          
+
           <form onSubmit={handleLogin}>
             <div className="mb-4">
               <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
@@ -64,7 +73,7 @@ const LoginPage: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             <div className="mb-6">
               <div className="flex items-center justify-between mb-2">
                 <label htmlFor="password" className="block text-gray-700 font-medium">
@@ -88,7 +97,7 @@ const LoginPage: React.FC = () => {
                 />
               </div>
             </div>
-            
+
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center">
                 <input
@@ -103,7 +112,7 @@ const LoginPage: React.FC = () => {
                 </label>
               </div>
             </div>
-            
+
             <button
               type="submit"
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2"
@@ -112,11 +121,11 @@ const LoginPage: React.FC = () => {
               Iniciar Sesión
             </button>
           </form>
-          
+
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               ¿No tienes una cuenta?{' '}
-              <button 
+              <button
                 onClick={handleRegister}
                 className="text-indigo-600 hover:text-indigo-800 font-medium"
               >
