@@ -11,13 +11,14 @@ const RegisterPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validación básica
-    if (!name || !email || !password || !confirmPassword) {
+    if (!username || !name || !lastname || !email || !password || !confirmPassword) {
       setErrorMessage('Por favor complete todos los campos');
       return;
     }
@@ -26,6 +27,14 @@ const RegisterPage: React.FC = () => {
       setErrorMessage('Las contraseñas no coinciden');
       return;
     }
+
+    if (password.length < 8) {
+      setErrorMessage('La contraseña debe tener al menos 8 caracteres');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage('');
 
     const userData = {
       username: username,
@@ -39,11 +48,35 @@ const RegisterPage: React.FC = () => {
     try {
       const registeredUser = await registrar(userData);
       console.log('User registered successfully:', registeredUser);
+      
+      // Mostrar mensaje de éxito y redirigir al login
+      alert('Registro exitoso! Ahora puedes iniciar sesión.');
       navigate('/login');
-      // Simular registro exitoso
-    } catch (error) {
+      
+    } catch (error: unknown) {
       console.error('Error registering user:', error);
-      setErrorMessage('Error al registrar usuario');
+      
+      // Type guard para verificar si el error tiene la estructura esperada
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const httpError = error as { response?: { status?: number; data?: { email?: string[]; username?: string[] } } };
+        
+        if (httpError.response?.status === 400) {
+          const errorData = httpError.response.data;
+          if (errorData?.email) {
+            setErrorMessage('Este email ya está registrado');
+          } else if (errorData?.username) {
+            setErrorMessage('Este nombre de usuario ya está en uso');
+          } else {
+            setErrorMessage('Datos inválidos. Verifica los campos.');
+          }
+        } else {
+          setErrorMessage('Error de conexión. Intenta nuevamente.');
+        }
+      } else {
+        setErrorMessage('Error inesperado. Intenta nuevamente.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -171,10 +204,20 @@ const RegisterPage: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2"
+              disabled={loading}
+              className={`w-full ${loading ? 'bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700'} text-white py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2 transition-colors`}
             >
-              <UserPlus className="h-5 w-5" />
-              Registrarse
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Registrando...
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-5 w-5" />
+                  Registrarse
+                </>
+              )}
             </button>
           </form>
 

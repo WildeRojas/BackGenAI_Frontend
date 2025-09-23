@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import {
     ReactFlow,
     Background,
@@ -10,12 +10,18 @@ import {
     useEdgesState,
     SmoothStepEdge
 } from "@xyflow/react"
+import { useSearchParams } from "react-router-dom";
+
 
 import type { Connection, Edge, Node } from "@xyflow/react";
 import "@xyflow/react/dist/style.css"
 
 import { ClassNode } from "./Node";
 import { AssociationEdge, InheritanceEdge, AggregationEdge, CompositionEdge, DependencyEdge } from "./UmlEdges";
+import { SpringBootCodeGenerator, downloadAsZip } from "../../Services/springBootGenerator";
+import type { UMLClass, UMLRelation } from "../../Services/springBootGenerator";
+import { Code2 } from "lucide-react";
+import { connectWebSocket, sendMessage } from "../../Services/webSocket";
 
 const initialNodes: Node[] = [{
     id: '1',
@@ -57,20 +63,71 @@ const edgeTypes = {
 
 type RelationType = 'association' | 'inheritance' | 'aggregation' | 'dependency' | 'composition';
 
+
+
 export const Diagrama: React.FC = () => {
     const [nodes, SetNodes, onNodesChange] = useNodesState(initialNodes);
     const [edges, SetEdges, onEdgesChange] = useEdgesState<UmlEdge>(initialEdges);
     const [relationType, setRelationType] = useState<RelationType>('association');
     const [selectedEdge, setSelectedEdge] = useState<string | null>(null);
-    
+
     // Valores por defecto para la cardinalidad
     const defaultSourceCardinality = '1';
     const defaultTargetCardinality = '*';
-
+    const [searchParams] = useSearchParams();
+    const room_Id = searchParams.get('session');
     // Cuando se selecciona un edge
     const onEdgeClick = (_: React.MouseEvent, edge: Edge) => {
         setSelectedEdge(edge.id);
     };
+
+    useEffect(() => {
+        if (!room_Id) return;
+
+        connectWebSocket(room_Id).then(socket => {
+            const handleMessage = (event: MessageEvent) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === "diagram_updated") {
+                    const { action } = data.diagram_data;
+
+                    if (action === "add_class") {
+                        const newNode = data.diagram_data.node;
+                        if (newNode) {
+                            SetNodes(nds => {
+                                if (nds.some(n => n.id === newNode.id)) {
+                                    return nds;
+                                }
+                                return nds.concat(newNode);
+                            });
+                        }
+                    }
+
+                    if (action === "add_edge") {
+                        const newEdge = data.diagram_data.edge;
+                        if (newEdge) {
+                            SetEdges(eds => {
+                                if (eds.some(e => e.id === newEdge.id)) {
+                                    return eds;
+                                }
+                                return addEdge(newEdge, eds);
+                            });
+                        }
+                    }
+                    if(action === "update_edge") {
+                        const updatedEdge = data.diagram_data.edge;
+                        SetEdges(eds => eds.map(
+                            e => e.id === updatedEdge.id ? updatedEdge : e
+                        ))
+                    }
+                }
+            };
+            socket.addEventListener("message", handleMessage);
+            return () => {
+                socket.removeEventListener("message", handleMessage);
+            };
+        });
+    }, [room_Id, SetNodes, SetEdges]);
 
     const onConnect = useCallback(
         (params: Edge | Connection) => {
@@ -93,6 +150,13 @@ export const Diagrama: React.FC = () => {
                 },
             };
             SetEdges((eds) => addEdge(newEdge, eds));
+            sendMessage({
+                type: 'diagram_update',
+                diagram_data: {
+                    action: "add_edge",
+                    edge: newEdge,
+                },
+            });
         },
         [relationType, SetEdges]
     );
@@ -105,6 +169,13 @@ export const Diagrama: React.FC = () => {
             data: { label: `Clase${nodes.length + 1}`, attributes: [] },
         };
         SetNodes((nds) => nds.concat(newNode));
+        sendMessage({
+            type: 'diagram_update',
+            diagram_data: {
+                action: "add_class",
+                node: newNode,
+            },
+        })
     };
 
     const getEdgeColor = (type: string) => {
@@ -119,33 +190,49 @@ export const Diagrama: React.FC = () => {
 
     const handleRelationTypeChange = (type: string) => {
         setRelationType(type as RelationType);
-        // Si hay un edge seleccionado, cambiar su tipo
         if (selectedEdge) {
-            SetEdges((eds) => eds.map(e =>
-                e.id === selectedEdge 
-                ? { 
-                    ...e, 
-                    type, 
-                    data: { 
-                        ...e.data, 
-                        relationType: type 
-                    } 
-                } 
-                : e
-            ));
+            SetEdges((eds) => {
+                const updatedEdges = eds.map(e =>
+                    e.id === selectedEdge
+                        ? {
+                            ...e,
+                            type,
+                            data: {
+                                ...e.data,
+                                relationType: type
+                            }
+                        }
+                        : e
+                );
+
+                // Enviar actualización al backend
+                const updatedEdge = updatedEdges.find(e => e.id === selectedEdge);
+                if (updatedEdge) {
+                    sendMessage({
+                        type: 'diagram_update',
+                        diagram_data: {
+                            action: "update_edge",
+                            edge: updatedEdge
+                        }
+                    });
+                }
+
+                return updatedEdges;
+            });
         }
-    }
+    };
+
 
     const updateEdgeCardinality = (edgeId: string, source: boolean, value: string) => {
-        SetEdges(eds => 
+        SetEdges(eds =>
             eds.map(edge => {
                 if (edge.id === edgeId) {
                     return {
                         ...edge,
                         data: {
                             ...edge.data,
-                            ...(source 
-                                ? { sourceCardinality: value } 
+                            ...(source
+                                ? { sourceCardinality: value }
                                 : { targetCardinality: value })
                         }
                     };
@@ -155,13 +242,105 @@ export const Diagrama: React.FC = () => {
         );
     };
 
+    // Convertir datos del diagrama al formato UML para el generador
+    const convertToUMLFormat = (): { classes: UMLClass[], relations: UMLRelation[] } => {
+        const umlClasses: UMLClass[] = nodes.map(node => {
+            const nodeData = node.data as { label: string; attributes: Array<{ name: string; type: string; visibility: string }> };
+            return {
+                id: node.id,
+                name: nodeData.label || 'UnnamedClass',
+                attributes: (nodeData.attributes || []).map(attr => ({
+                    name: attr.name,
+                    type: attr.type,
+                    visibility: (attr.visibility as 'public' | 'private' | 'protected') || 'public'
+                })),
+                methods: [] // Por ahora, los métodos no están implementados en los nodos
+            };
+        });
+
+        const umlRelations: UMLRelation[] = edges.map(edge => {
+            const edgeData = edge.data as EdgeData;
+            return {
+                id: edge.id,
+                source: edge.source,
+                target: edge.target,
+                type: edgeData.relationType as 'association' | 'inheritance' | 'aggregation' | 'composition' | 'dependency',
+                sourceCardinality: edgeData.sourceCardinality,
+                targetCardinality: edgeData.targetCardinality
+            };
+        });
+
+        return { classes: umlClasses, relations: umlRelations };
+    };
+
+    // Generar y descargar el proyecto Spring Boot
+    const generateSpringBootCode = async () => {
+        try {
+            const { classes, relations } = convertToUMLFormat();
+
+            if (classes.length === 0) {
+                alert('No hay clases en el diagrama para generar código.');
+                return;
+            }
+
+            const generator = new SpringBootCodeGenerator(classes, relations);
+            const project = generator.generateSpringBootProject();
+
+            // Crear mapa de archivos para descargar
+            const files: { [filename: string]: string } = {};
+
+            // Entidades
+            project.entities.forEach((entity, index) => {
+                files[`${classes[index].name}Entity.java`] = entity;
+            });
+
+            // Repositorios
+            project.repositories.forEach((repo, index) => {
+                files[`${classes[index].name}Repository.java`] = repo;
+            });
+
+            // Servicios
+            project.services.forEach((service, index) => {
+                files[`${classes[index].name}Service.java`] = service;
+            });
+
+            // Controladores
+            project.controllers.forEach((controller, index) => {
+                files[`${classes[index].name}Controller.java`] = controller;
+            });
+
+            // Archivos de configuración
+            files['application.properties'] = project.applicationProperties;
+            files['pom.xml'] = project.pomXml;
+
+            // Descargar como ZIP
+            await downloadAsZip(files, 'spring-boot-project.zip');
+
+        } catch (error) {
+            console.error('Error generating Spring Boot code:', error);
+            alert('Error al generar el código Spring Boot. Verifica la consola para más detalles.');
+        }
+    };
+
     return (
         <div className="flex w-full h-screen">
-            <Sidebar 
-                onAddNode={addNode} 
+            <Sidebar
+                onAddNode={addNode}
                 onSelectRelation={handleRelationTypeChange}
             />
             <div className="flex-1 relative">
+                {/* Toolbar superior */}
+                <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-md border border-gray-200 p-2">
+                    <button
+                        onClick={generateSpringBootCode}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium text-sm"
+                        title="Generar código Spring Boot"
+                    >
+                        <Code2 className="w-4 h-4" />
+                        <span className="hidden sm:inline">Generar Spring Boot</span>
+                    </button>
+                </div>
+
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
@@ -216,14 +395,14 @@ export const Diagrama: React.FC = () => {
                                     Cerrar
                                 </button>
                             </div>
-                            
+
                             {/* Cardinalidad */}
                             <div className="flex gap-4 pt-1 border-t">
                                 <div className="flex items-center gap-1">
                                     <label className="text-xs text-gray-600">Origen:</label>
-                                    <input 
+                                    <input
                                         className="border rounded px-2 py-1 text-sm w-16"
-                                        value={edges.find(e => e.id === selectedEdge)?.data.sourceCardinality || defaultSourceCardinality} 
+                                        value={edges.find(e => e.id === selectedEdge)?.data.sourceCardinality || defaultSourceCardinality}
                                         onChange={(e) => {
                                             updateEdgeCardinality(selectedEdge, true, e.target.value);
                                         }}
@@ -231,9 +410,9 @@ export const Diagrama: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <label className="text-xs text-gray-600">Destino:</label>
-                                    <input 
+                                    <input
                                         className="border rounded px-2 py-1 text-sm w-16"
-                                        value={edges.find(e => e.id === selectedEdge)?.data.targetCardinality || defaultTargetCardinality} 
+                                        value={edges.find(e => e.id === selectedEdge)?.data.targetCardinality || defaultTargetCardinality}
                                         onChange={(e) => {
                                             updateEdgeCardinality(selectedEdge, false, e.target.value);
                                         }}

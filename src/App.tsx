@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import type { ReactElement } from 'react';
 import './App.css';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
@@ -8,13 +7,22 @@ import ProfilePage from './Pages/Authentication/Perfil';
 import { Diagrama } from './Pages/Diagramador/Diagrama';
 import LoginPage from './Pages/Authentication/LoginPage';
 import RegisterPage from './Pages/Authentication/Register';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 // Componente de wrapper para proteger rutas
 const ProtectedRoute = ({ children }: { children: ReactElement }) => {
-  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
-  if (!isLoggedIn) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -36,25 +44,8 @@ const AuthenticatedLayout = ({ children }: { children: ReactElement }) => {
   );
 };
 
-function App() {
-  // Estado para revisar si estamos autenticados
-  const [checking, setChecking] = useState(true);
-  
-  useEffect(() => {
-    // Simulación de revisión de autenticación
-    setTimeout(() => {
-      setChecking(false);
-    }, 500);
-  }, []);
-
-  if (checking) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
-
+// Componente interno de la aplicación que usa el contexto de autenticación
+const AppContent = () => {
   return (
     <BrowserRouter>
       <Routes>
@@ -89,6 +80,14 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

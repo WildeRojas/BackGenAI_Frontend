@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { User,Lock, LogIn } from 'lucide-react';
 import { login } from '../../Services/authentication/login';
+import { useAuth } from '../../contexts/AuthContext';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login: authLogin } = useAuth();
 
-
+  // Obtener la ubicación de donde el usuario venía
+  const from = location.state?.from?.pathname || '/disenio';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,15 +27,36 @@ const LoginPage: React.FC = () => {
       return;
     }
 
+    setLoading(true);
+    setErrorMessage('');
+
     try {
       const response = await login(email, password);
       console.log('Login successful:', response);
-      localStorage.setItem('access', response.access);
-      localStorage.setItem('refresh', response.refresh);
-      navigate('/disenio');
-    } catch (error) {
+      
+      // Usar el contexto de autenticación para manejar el login
+      authLogin(response.access, response.user);
+      
+      // Redirigir a donde el usuario quería ir originalmente
+      navigate(from, { replace: true });
+    } catch (error: unknown) {
       console.error('Login failed:', error);
-      setErrorMessage('Credenciales inválidas');
+      
+      // Type guard para verificar si el error tiene la estructura esperada
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const httpError = error as { response?: { status?: number } };
+        if (httpError.response?.status === 401) {
+          setErrorMessage('Credenciales incorrectas. Verifica tu email y contraseña.');
+        } else if (httpError.response?.status === 400) {
+          setErrorMessage('Datos inválidos. Verifica los campos.');
+        } else {
+          setErrorMessage('Error de conexión. Intenta nuevamente.');
+        }
+      } else {
+        setErrorMessage('Error inesperado. Intenta nuevamente.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -115,10 +141,24 @@ const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2"
+              disabled={loading}
+              className={`w-full py-2 px-4 rounded-lg font-medium flex items-center justify-center gap-2 ${
+                loading 
+                  ? 'bg-indigo-400 cursor-not-allowed' 
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+              } text-white`}
             >
-              <LogIn className="h-5 w-5" />
-              Iniciar Sesión
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                  Iniciando sesión...
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-5 w-5" />
+                  Iniciar Sesión
+                </>
+              )}
             </button>
           </form>
 
