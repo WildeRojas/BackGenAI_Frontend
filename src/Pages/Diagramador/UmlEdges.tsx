@@ -1,269 +1,150 @@
 import React from "react";
-import { getBezierPath } from "@xyflow/react";
+import { getSmoothStepPath  } from "@xyflow/react";
 import type { EdgeProps } from "@xyflow/react";
+
 
 // Asociación: línea simple con cardinalidad mejorada
 export const AssociationEdge: React.FC<EdgeProps> = (props) => {
-  const [edgePath] = getBezierPath(props);
-  const sourceCard = props.data?.sourceCardinality || '';
-  const targetCard = props.data?.targetCardinality || '';
-  
+  const [edgePath] = getSmoothStepPath({
+    sourceX: props.sourceX,
+    sourceY: props.sourceY,
+    targetX: props.targetX,
+    targetY: props.targetY,
+  });
+
   return (
     <g>
-      <path d={edgePath} stroke="#3b82f6" strokeWidth={2} fill="none" />
-      {/* Cardinalidad más visible en ambos extremos */}
-      {sourceCard && (
-        <text 
-          x={props.sourceX - 25} 
-          y={props.sourceY - 10} 
-          fontSize={14} 
-          fill="#3b82f6" 
-          textAnchor="middle"
-          fontWeight="bold"
-        >{String(sourceCard)}</text>
-      )}
-      {targetCard && (
-        <text 
-          x={props.targetX + 25} 
-          y={props.targetY - 10} 
-          fontSize={14} 
-          fill="#3b82f6" 
-          textAnchor="middle"
-          fontWeight="bold"
-        >{String(targetCard)}</text>
-      )}
+      <path d={edgePath} stroke="black" strokeWidth={2} fill="none" />
+
+      {/* Cardinalidades */}
+      <text
+        x={(props.sourceX * 3 + props.targetX) / 4}
+        y={(props.sourceY * 3 + props.targetY) / 4 - 5}
+        fontSize={12}
+        fill="black"
+      >
+        {String(props.data?.sourceCardinality || "1")}
+      </text>
+      <text
+        x={(props.targetX * 3 + props.sourceX) / 4}
+        y={(props.targetY * 3 + props.sourceY) / 4 - 5}
+        fontSize={12}
+        fill="black"
+      >
+        {String(props.data?.targetCardinality || "*")}
+      </text>
     </g>
   );
 };
 
-// Herencia: triángulo vacío siempre en el TARGET (clase padre/base)
 export const InheritanceEdge: React.FC<EdgeProps> = (props) => {
-  const [edgePath] = getBezierPath(props);
-  const sourceCard = props.data?.sourceCardinality || '';
-  const targetCard = props.data?.targetCardinality || '';
-  
-  // Calcular la dirección de la conexión
-  const dx = props.targetX - props.sourceX;
-  const dy = props.targetY - props.sourceY;
-  const angle = Math.atan2(dy, dx);
-  
-  // En herencia, el triángulo va en el TARGET (clase padre/base)
-  const length = 16;
-  const width = 8;
-  const targetPointX = props.targetX;
-  const targetPointY = props.targetY;
-  const p1x = targetPointX - length * Math.cos(angle);
-  const p1y = targetPointY - length * Math.sin(angle);
-  const p2x = p1x - width * Math.sin(angle);
-  const p2y = p1y + width * Math.cos(angle);
-  const p3x = p1x + width * Math.sin(angle);
-  const p3y = p1y - width * Math.cos(angle);
-  
+  const [edgePath] = getSmoothStepPath ({
+    sourceX: props.sourceX,
+    sourceY: props.sourceY,
+    sourcePosition: props.sourcePosition,
+    targetX: props.targetX,
+    targetY: props.targetY,
+    targetPosition: props.targetPosition,
+  });
+
   return (
     <g>
-      <path d={edgePath} stroke="#10b981" strokeWidth={2} fill="none" />
-      {/* Triángulo vacío en el TARGET (clase padre/base) */}
-      <polygon
-        points={`${p2x},${p2y} ${targetPointX},${targetPointY} ${p3x},${p3y}`}
-        fill="white"
-        stroke="#10b981"
+      <defs>
+        <marker
+          id="inheritance-arrow"
+          markerWidth="20"
+          markerHeight="20"
+          refX="18"  // 👈 empuja la flecha fuera del nodo
+          refY="10"
+          orient="auto"
+        >
+          <path d="M0,0 L18,10 L0,20 Z" fill="white" stroke="black" />
+        </marker>
+      </defs>
+      <path
+        d={edgePath}
+        stroke="black"
         strokeWidth={2}
+        fill="none"
+        strokeDasharray="6,6"
+        markerEnd="url(#inheritance-arrow)" // 👈 flecha en el destino
       />
-      {/* Cardinalidad más visible */}
-      {sourceCard && (
-        <text 
-          x={props.sourceX - 25} 
-          y={props.sourceY - 10} 
-          fontSize={14} 
-          fill="#10b981" 
-          textAnchor="middle"
-          fontWeight="bold"
-        >{String(sourceCard)}</text>
-      )}
-      {targetCard && (
-        <text 
-          x={props.targetX + 25} 
-          y={props.targetY - 10} 
-          fontSize={14} 
-          fill="#10b981" 
-          textAnchor="middle"
-          fontWeight="bold"
-        >{String(targetCard)}</text>
-      )}
     </g>
   );
 };
 
-// Agregación: rombo vacío siempre en el lado que controla la relación
+/* ========== Agregación ==========
+   Rombo vacío en el TARGET
+*/
 export const AggregationEdge: React.FC<EdgeProps> = (props) => {
-  const [edgePath] = getBezierPath(props);
-  const sourceCard = props.data?.sourceCardinality || '';
-  const targetCard = props.data?.targetCardinality || '';
-  
-  // Calcular la dirección de la conexión
-  const dx = props.targetX - props.sourceX;
-  const dy = props.targetY - props.sourceY;
-  const angle = Math.atan2(dy, dx);
-  
-  // En agregación, el rombo va en el SOURCE (el que contiene/agrega)
-  const length = 12;
-  const width = 6;
-  const sourcePointX = props.sourceX;
-  const sourcePointY = props.sourceY;
-  const p1x = sourcePointX + length * Math.cos(angle);
-  const p1y = sourcePointY + length * Math.sin(angle);
-  const p2x = sourcePointX + width * Math.sin(angle);
-  const p2y = sourcePointY - width * Math.cos(angle);
-  const p3x = sourcePointX - width * Math.sin(angle);
-  const p3y = sourcePointY + width * Math.cos(angle);
-  
+  const [edgePath] = getSmoothStepPath ({
+    sourceX: props.sourceX,
+    sourceY: props.sourceY,
+    sourcePosition: props.sourcePosition,
+    targetX: props.targetX,
+    targetY: props.targetY,
+    targetPosition: props.targetPosition,
+  });
+
   return (
     <g>
-      <path d={edgePath} stroke="#f59e0b" strokeWidth={2} fill="none" />
-      {/* Rombo vacío en el SOURCE (quien agrega) */}
-      <polygon
-        points={`${sourcePointX},${sourcePointY} ${p2x},${p2y} ${p1x},${p1y} ${p3x},${p3y}`}
-        fill="white"
-        stroke="#f59e0b"
+      <defs>
+        <marker
+          id="aggregation-diamond"
+          markerWidth="25"
+          markerHeight="25"
+          refX="22"  
+          refY="12"
+          orient="auto"
+        >
+          <path d="M12,0 L24,12 L12,24 L0,12 Z" fill="white" stroke="black" />
+        </marker>
+      </defs>
+      <path
+        d={edgePath}
+        stroke="black"
         strokeWidth={2}
+        fill="none"
+        markerEnd="url(#aggregation-diamond)" 
       />
-      {/* Cardinalidad más visible */}
-      {sourceCard && (
-        <text 
-          x={props.sourceX - 25} 
-          y={props.sourceY - 10} 
-          fontSize={14} 
-          fill="#f59e0b" 
-          textAnchor="middle"
-          fontWeight="bold"
-        >{String(sourceCard)}</text>
-      )}
-      {targetCard && (
-        <text 
-          x={props.targetX + 25} 
-          y={props.targetY - 10} 
-          fontSize={14} 
-          fill="#f59e0b" 
-          textAnchor="middle"
-          fontWeight="bold"
-        >{String(targetCard)}</text>
-      )}
     </g>
   );
 };
 
-// Composición: rombo negro siempre en el lado que posee/contiene
+/* ========== Composición ==========
+   Rombo negro en el TARGET
+*/
 export const CompositionEdge: React.FC<EdgeProps> = (props) => {
-  const [edgePath] = getBezierPath(props);
-  const sourceCard = props.data?.sourceCardinality || '';
-  const targetCard = props.data?.targetCardinality || '';
-  
-  // Calcular la dirección de la conexión
-  const dx = props.targetX - props.sourceX;
-  const dy = props.targetY - props.sourceY;
-  const angle = Math.atan2(dy, dx);
-  
-  // En composición, el rombo va en el SOURCE (el que posee/contiene)
-  const length = 12;
-  const width = 6;
-  const sourcePointX = props.sourceX;
-  const sourcePointY = props.sourceY;
-  const p1x = sourcePointX + length * Math.cos(angle);
-  const p1y = sourcePointY + length * Math.sin(angle);
-  const p2x = sourcePointX + width * Math.sin(angle);
-  const p2y = sourcePointY - width * Math.cos(angle);
-  const p3x = sourcePointX - width * Math.sin(angle);
-  const p3y = sourcePointY + width * Math.cos(angle);
-  
-  return (
-    <g>
-      <path d={edgePath} stroke="#ef4444" strokeWidth={2} fill="none" />
-      {/* Rombo negro en el SOURCE (quien posee/contiene) */}
-      <polygon
-        points={`${sourcePointX},${sourcePointY} ${p2x},${p2y} ${p1x},${p1y} ${p3x},${p3y}`}
-        fill="#ef4444"
-        stroke="#ef4444"
-        strokeWidth={2}
-      />
-      {/* Cardinalidad más visible */}
-      {sourceCard && (
-        <text 
-          x={props.sourceX - 25} 
-          y={props.sourceY - 10} 
-          fontSize={14} 
-          fill="#ef4444" 
-          textAnchor="middle"
-          fontWeight="bold"
-        >{String(sourceCard)}</text>
-      )}
-      {targetCard && (
-        <text 
-          x={props.targetX + 25} 
-          y={props.targetY - 10} 
-          fontSize={14} 
-          fill="#ef4444" 
-          textAnchor="middle"
-          fontWeight="bold"
-        >{String(targetCard)}</text>
-      )}
-    </g>
-  );
-};
+  const [edgePath] = getSmoothStepPath({
+    sourceX: props.sourceX,
+    sourceY: props.sourceY,
+    sourcePosition: props.sourcePosition,
+    targetX: props.targetX,
+    targetY: props.targetY,
+    targetPosition: props.targetPosition,
+  });
 
-// Dependencia: línea punteada con triángulo vacío en el TARGET (quien es dependido)
-export const DependencyEdge: React.FC<EdgeProps> = (props) => {
-  const [edgePath] = getBezierPath(props);
-  const sourceCard = props.data?.sourceCardinality || '';
-  const targetCard = props.data?.targetCardinality || '';
-  
-  // Calcular la dirección de la conexión
-  const dx = props.targetX - props.sourceX;
-  const dy = props.targetY - props.sourceY;
-  const angle = Math.atan2(dy, dx);
-  
-  // En dependencia, la flecha va en el TARGET (quien es dependido)
-  const length = 16;
-  const width = 8;
-  const targetPointX = props.targetX;
-  const targetPointY = props.targetY;
-  const p1x = targetPointX - length * Math.cos(angle);
-  const p1y = targetPointY - length * Math.sin(angle);
-  const p2x = p1x - width * Math.sin(angle);
-  const p2y = p1y + width * Math.cos(angle);
-  const p3x = p1x + width * Math.sin(angle);
-  const p3y = p1y - width * Math.cos(angle);
-  
   return (
     <g>
-      <path d={edgePath} stroke="#8b5cf6" strokeWidth={2} fill="none" strokeDasharray="5,5" />
-      {/* Triángulo vacío en el TARGET (quien es dependido) */}
-      <polygon
-        points={`${p2x},${p2y} ${targetPointX},${targetPointY} ${p3x},${p3y}`}
-        fill="white"
-        stroke="#8b5cf6"
+      <defs>
+        <marker
+          id="composition-diamond"
+          markerWidth="25"
+          markerHeight="25"
+          refX="22"
+          refY="12"
+          orient="auto"
+        >
+          <path d="M12,0 L24,12 L12,24 L0,12 Z" fill="black" stroke="black" />
+        </marker>
+      </defs>
+      <path
+        d={edgePath}
+        stroke="black"
         strokeWidth={2}
+        fill="none"
+        markerEnd="url(#composition-diamond)" 
       />
-      {/* Cardinalidad más visible */}
-      {sourceCard && (
-        <text 
-          x={props.sourceX - 25} 
-          y={props.sourceY - 10} 
-          fontSize={14} 
-          fill="#8b5cf6" 
-          textAnchor="middle"
-          fontWeight="bold"
-        >{String(sourceCard)}</text>
-      )}
-      {targetCard && (
-        <text 
-          x={props.targetX + 25} 
-          y={props.targetY - 10} 
-          fontSize={14} 
-          fill="#8b5cf6" 
-          textAnchor="middle"
-          fontWeight="bold"
-        >{String(targetCard)}</text>
-      )}
     </g>
   );
 };

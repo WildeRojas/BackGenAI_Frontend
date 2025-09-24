@@ -6,15 +6,15 @@ interface SidebarProps {
 	onSelectRelation?: (relationType: string) => void;
 }
 
+
 const RELATION_TYPES = [
 	{ key: "association", label: "Asociación" },
 	{ key: "inheritance", label: "Herencia" },
 	{ key: "aggregation", label: "Agregación" },
-	{ key: "dependency", label: "Dependencia" },
 	{ key: "composition", label: "Composición" },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSelectRelation}) => {
+export const Sidebar: React.FC<SidebarProps> = ({ onAddNode, onSelectRelation }) => {
 	const [relationOpen, setRelationOpen] = useState(false);
 
 	return (

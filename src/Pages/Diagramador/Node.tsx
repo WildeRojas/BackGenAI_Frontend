@@ -15,41 +15,32 @@ export const ClassNode: React.FC<NodeProps> = ({ data }) => {
     Array.isArray(data.attributes) ? data.attributes : []
   );
 
-
   const handleAddAttribute = () => {
     setAttributes([...attributes, { name: "atributo", type: "tipo" }]);
   };
 
-  const handleAttrChange = (index: number, field: keyof Attribe, value: string) => {
+  const handleAttrChange = (
+    index: number,
+    field: keyof Attribe,
+    value: string
+  ) => {
     const newAttrs = [...attributes];
     newAttrs[index][field] = value;
     setAttributes(newAttrs);
-  }
+  };
 
   return (
-    <div className="bg-white border-2 border-gray-400 rounded-lg shadow-md min-w-[220px] relative">
-      {/* Handles para conectar */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="w-3 h-3 !bg-blue-500 !border-2 !border-white"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="w-3 h-3 !bg-blue-500 !border-2 !border-white"
-      />
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="w-3 h-3 !bg-blue-500 !border-2 !border-white"
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="w-3 h-3 !bg-blue-500 !border-2 !border-white"
-      />
-
+    <div className="bg-white border-s2 border-gray-400 rounded-lg shadow-md min-w-[220px] relative">
+      {/* Bordes completos conectables */}
+      <Handle type="source" position={Position.Right} id="source-right" />
+      <Handle type="source" position={Position.Left} id="source-left" />
+      <Handle type="source" position={Position.Top} id="source-top" />
+      <Handle type="source" position={Position.Bottom} id="source-bottom" />
+      
+      <Handle type="target" position={Position.Right} id="target-right" />
+      <Handle type="target" position={Position.Left} id="target-left" />
+      <Handle type="target" position={Position.Top} id="target-top" />
+      <Handle type="target" position={Position.Bottom} id="target-bottom" />
       {/* Nombre de la clase */}
       <div className="bg-gray-200 px-3 py-1 font-bold text-center border-b">
         <input
@@ -92,5 +83,5 @@ export const ClassNode: React.FC<NodeProps> = ({ data }) => {
         </button>
       </div>
     </div>
-    );
+  );
 };
