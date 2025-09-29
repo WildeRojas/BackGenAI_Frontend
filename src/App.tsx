@@ -76,6 +76,8 @@ const AppContent = () => {
           </ProtectedRoute>
         } />
         
+        <Route path="/diseño/:proyectoId" element={<Diagrama />} />
+        
         {/* Redireccionar rutas desconocidas */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

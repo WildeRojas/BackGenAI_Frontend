@@ -69,6 +69,7 @@ export const InheritanceEdge: React.FC<EdgeProps> = (props) => {
         strokeDasharray="6,6"
         markerEnd="url(#inheritance-arrow)" // 👈 flecha en el destino
       />
+      {/* No mostrar cardinalidad para herencia */}
     </g>
   );
 };
@@ -107,6 +108,7 @@ export const AggregationEdge: React.FC<EdgeProps> = (props) => {
         fill="none"
         markerEnd="url(#aggregation-diamond)" 
       />
+      {/* No mostrar cardinalidad para agregación */}
     </g>
   );
 };
@@ -145,6 +147,7 @@ export const CompositionEdge: React.FC<EdgeProps> = (props) => {
         fill="none"
         markerEnd="url(#composition-diamond)" 
       />
+      {/* No mostrar cardinalidad para composición */}
     </g>
   );
 };

@@ -7,7 +7,15 @@ interface Attribe {
   type: string;
 }
 
-export const ClassNode: React.FC<NodeProps> = ({ data }) => {
+interface NodeDataUpdate {
+  label?: string;
+  attributes?: Attribe[];
+}
+interface ClassNodeProps extends NodeProps {
+  updateNodeData?: (nodeId: string, newData: NodeDataUpdate) => void;
+}
+
+export const ClassNode: React.FC<ClassNodeProps> = ({ id, data, updateNodeData }) => {
   const [className, setClassName] = useState(
     typeof data.label === "string" ? data.label : "NuevaClase"
   );
@@ -16,7 +24,11 @@ export const ClassNode: React.FC<NodeProps> = ({ data }) => {
   );
 
   const handleAddAttribute = () => {
-    setAttributes([...attributes, { name: "atributo", type: "tipo" }]);
+    const newAttrs = [...attributes, { name: "atributo", type: "string" }];
+    setAttributes(newAttrs);
+    if (updateNodeData) {
+      updateNodeData(id, { attributes: newAttrs });
+    }
   };
 
   const handleAttrChange = (
@@ -27,6 +39,17 @@ export const ClassNode: React.FC<NodeProps> = ({ data }) => {
     const newAttrs = [...attributes];
     newAttrs[index][field] = value;
     setAttributes(newAttrs);
+    if (updateNodeData) {
+      updateNodeData(id, { attributes: newAttrs });
+    }
+  };
+
+  const handleClassNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value;
+    setClassName(newName);
+    if (updateNodeData) {
+      updateNodeData(id, { label: newName });
+    }
   };
 
   return (
@@ -46,7 +69,7 @@ export const ClassNode: React.FC<NodeProps> = ({ data }) => {
         <input
           type="text"
           value={className}
-          onChange={(e) => setClassName(e.target.value)}
+          onChange={handleClassNameChange}
           className="bg-transparent w-full text-center font-bold outline-none"
         />
       </div>

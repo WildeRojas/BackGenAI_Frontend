@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 
@@ -17,7 +18,7 @@ interface AuthContextType {
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -38,7 +39,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Verificar si existe un token al cargar la aplicación
     const checkAuthStatus = () => {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem('access');
       const userData = localStorage.getItem('user_data');
       
       if (token && userData) {
@@ -48,8 +49,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch (error) {
           console.error('Error parsing user data:', error);
           // Si hay error, limpiar los datos corruptos
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('access');
+          localStorage.removeItem('refresh');
           localStorage.removeItem('user_data');
         }
       }
@@ -61,14 +62,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const login = (token: string, userData: User) => {
-    localStorage.setItem('access_token', token);
+    localStorage.setItem('access', token);
     localStorage.setItem('user_data', JSON.stringify(userData));
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('access');
+    localStorage.removeItem('refresh');
     localStorage.removeItem('user_data');
     setUser(null);
   };
