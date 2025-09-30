@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
 import './App.css';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Navbar } from './Components/Navbar';
 import { Sidebar } from './Components/Sidebar';
 import ProfilePage from './Pages/Authentication/Perfil';
 import { Diagrama } from './Pages/Diagramador/Diagrama';
@@ -35,8 +34,7 @@ const AuthenticatedLayout = ({ children }: { children: ReactElement }) => {
     <div className="flex">
       <Sidebar />
       <div className="flex-1 ml-16 sm:ml-56 min-h-screen bg-gray-50">
-        <Navbar />
-        <main className="p-4 pt-8">
+        <main className="w-full h-full">
           {children}
         </main>
       </div>
@@ -76,7 +74,11 @@ const AppContent = () => {
           </ProtectedRoute>
         } />
         
-        <Route path="/diseño/:proyectoId" element={<Diagrama />} />
+        <Route path="/diseño/:proyectoId" element={
+          <AuthenticatedLayout>
+            <Diagrama />
+          </AuthenticatedLayout>
+        } />
         
         {/* Redireccionar rutas desconocidas */}
         <Route path="*" element={<Navigate to="/" replace />} />

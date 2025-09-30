@@ -12,27 +12,30 @@ export const Navbar = () => {
   const [collaborationLink, setCollaborationLink] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
 
+
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+
 
   const generateCollaborationLink = async () => {
     try {
       // Generar un ID único para la sesión colaborativa
       const sessionId = crypto.randomUUID();
       const link = `${window.location.origin}/disenio?session=${sessionId}`;
-      
+
       // Conectar al WebSocket para la colaboración
       await connectWebSocket(sessionId);
-      
+
       // Enviar mensaje de nueva sesión
       sendMessage({
         type: 'session_created',
         sessionId: sessionId,
         user: user?.username || 'Usuario'
       });
-      
+
       setCollaborationLink(link);
       setShowCollabMenu(true);
     } catch (error) {
@@ -40,6 +43,9 @@ export const Navbar = () => {
       alert('Error al generar el link de colaboración');
     }
   };
+
+
+
 
   const copyToClipboard = async () => {
     try {
@@ -62,26 +68,26 @@ export const Navbar = () => {
           <User className="w-5 h-5" />
           <span className="hidden sm:inline">Perfil</span>
         </Link>
-        
+
         {/* Menú de colaboración */}
         <div className="relative">
-          <button 
+          <button
             onClick={generateCollaborationLink}
             className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors shadow-sm text-sm font-medium"
           >
             <Share2 className="w-5 h-5" />
             <span className="hidden sm:inline">Generar link colaboración</span>
           </button>
-          
+
           {/* Dropdown del link de colaboración */}
           {showCollabMenu && (
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50">
               <h3 className="text-sm font-semibold text-gray-800 mb-2">Link de Colaboración</h3>
               <div className="flex items-center gap-2 p-2 bg-gray-50 rounded border">
-                <input 
-                  type="text" 
-                  value={collaborationLink} 
-                  readOnly 
+                <input
+                  type="text"
+                  value={collaborationLink}
+                  readOnly
                   className="flex-1 text-sm bg-transparent border-none outline-none"
                 />
                 <button
@@ -93,7 +99,7 @@ export const Navbar = () => {
                 </button>
               </div>
               <p className="text-xs text-gray-600 mt-2">Comparte este link para colaborar en tiempo real</p>
-              <button 
+              <button
                 onClick={() => setShowCollabMenu(false)}
                 className="mt-3 text-xs text-blue-600 hover:text-blue-800 transition-colors"
               >
@@ -103,8 +109,10 @@ export const Navbar = () => {
           )}
         </div>
 
+        {/* El botón de Gemini AI ahora se maneja en Diagrama.tsx */}
+
         {/* Botón de logout */}
-        <button 
+        <button
           onClick={handleLogout}
           className="flex items-center gap-1 text-gray-700 hover:text-red-600 transition-colors p-2 rounded"
           title="Cerrar sesión"
@@ -114,11 +122,13 @@ export const Navbar = () => {
         </button>
       </div>
 
-      {/* Overlay para cerrar el menú de colaboración */}
-      {showCollabMenu && (
-        <div 
+      {/* Overlay para cerrar los menús */}
+      {(showCollabMenu) && (
+        <div
           className="fixed inset-0 z-40"
-          onClick={() => setShowCollabMenu(false)}
+          onClick={() => {
+            setShowCollabMenu(false);
+          }}
         />
       )}
     </nav>

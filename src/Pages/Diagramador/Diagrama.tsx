@@ -26,6 +26,9 @@ import "@xyflow/react/dist/style.css";
 import { ClassNode } from "./Node";
 import type { NodeProps } from "@xyflow/react";
 import { SpringBootCodeGenerator } from "../../Services/springBootGenerator";
+import { DiagramProvider } from "../../contexts/DiagramContext";
+import { Navbar } from "../../Components/Navbar";
+import { GeminiModal } from "../../Components/GeminiModal";
 
 import { VersionSelector } from '../../Components/ProyectosList';
 
@@ -78,7 +81,7 @@ export const Diagrama: React.FC = () => {
     const [currentVersion, setCurrentVersion] = useState<proyectoVersion | null>(null);
 
     const [relationType, setRelationType] = useState<"association" | "inheritance" | "aggregation" | "composition">("association");
-    
+
     // Estados para edición de relaciones
     const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
     const [showEditRelationModal, setShowEditRelationModal] = useState(false);
@@ -140,7 +143,13 @@ export const Diagrama: React.FC = () => {
                 id: c.id,
                 type: "classNode",
                 position: { x: c.position.x, y: c.position.y },
-                data: { label: c.nombre, attributes: c.atributos }
+                data: { 
+                    label: c.nombre, 
+                    attributes: c.atributos.map(attr => ({ 
+                        name: attr.nombre, 
+                        type: attr.tipo 
+                    }))
+                }
             }));
 
             const loadedEdges: Edge[] = contenido.relations.map((r: UMLRelation) => ({
@@ -157,6 +166,68 @@ export const Diagrama: React.FC = () => {
             setNodes(loadedNodes);
             setEdges(loadedEdges);
         }
+    }, [setNodes, setEdges]);
+
+    // Función para aplicar un diagrama generado por IA
+    const applyGeneratedDiagram = useCallback((classes: UMLClass[], relations: UMLRelation[]) => {
+        console.log('Aplicando diagrama generado por IA:', { classes, relations });
+
+        // Convertir las clases UML a nodos de React Flow
+        const newNodes: Node[] = classes.map((c) => ({
+            id: c.id,
+            type: "classNode",
+            position: { x: c.position.x, y: c.position.y },
+            data: { 
+                label: c.nombre, 
+                attributes: c.atributos.map(attr => ({ 
+                    name: attr.nombre, 
+                    type: attr.tipo 
+                }))
+            }
+        }));
+
+        // Convertir las relaciones UML a edges de React Flow
+        const newEdges: Edge[] = relations.map((r) => {
+            // Encontrar las posiciones de los nodos para calcular los handles óptimos
+            const sourceNode = newNodes.find(n => n.id === r.source);
+            const targetNode = newNodes.find(n => n.id === r.target);
+
+            let sourceHandle = "source-right";
+            let targetHandle = "target-left";
+
+            if (sourceNode && targetNode) {
+                const result = getClosestHandles(
+                    sourceNode.position.x,
+                    sourceNode.position.y,
+                    targetNode.position.x,
+                    targetNode.position.y
+                );
+                sourceHandle = result.sourceHandle;
+                targetHandle = result.targetHandle;
+            }
+
+            return {
+                id: r.id,
+                source: r.source,
+                target: r.target,
+                type: r.type,
+                sourceHandle,
+                targetHandle,
+                data: {
+                    sourceCardinality: r.sourceCardinality || "1",
+                    targetCardinality: r.targetCardinality || "*"
+                }
+            };
+        });
+
+        // Aplicar los nuevos nodos y edges
+        setNodes(newNodes);
+        setEdges(newEdges);
+
+        console.log('Diagrama aplicado exitosamente:', { newNodes, newEdges });
+
+        // Mostrar mensaje de éxito
+        alert(`¡Diagrama aplicado exitosamente! ${classes.length} clases y ${relations.length} relaciones agregadas.`);
     }, [setNodes, setEdges]);
 
     // Conexiones entre nodos
@@ -312,115 +383,133 @@ export const Diagrama: React.FC = () => {
         navigate(`/diseño/${nuevoProyectoId}`);
     };
 
+    // Estado para el modal Gemini
+    const [isGeminiOpen, setIsGeminiOpen] = useState(false);
+
     return (
-        <div className="flex flex-col w-full h-screen">
-            {/* Header con botones de acción */}
-            <div className="flex justify-between p-2 bg-gray-100">
-                <div className="flex items-center gap-4">
-                    {loading ? (
-                        <span className="text-gray-600">Cargando...</span>
-                    ) : proyecto ? (
-                        <>
-                            <span className="font-medium">Proyecto: {proyecto.Titulo}</span>
-                            <VersionSelector
-                                proyectoId={proyecto.id}
-                                onVersionSelect={loadVersion}
-                                currentVersion={currentVersion}
-                            />
-                        </>
-                    ) : (
+        <DiagramProvider applyGeneratedDiagram={applyGeneratedDiagram}>
+            <div className="flex flex-col w-full h-screen">
+                <Navbar />
+                {/* Modal Gemini */}
+                <GeminiModal
+                    isOpen={isGeminiOpen}
+                    onClose={() => setIsGeminiOpen(false)}
+                    onGenerateDiagram={applyGeneratedDiagram}
+                />
+                {/* Header con botones de acción */}
+                <div className="flex justify-between p-2 bg-gray-100">
+                    <div className="flex items-center gap-4">
+                        {loading ? (
+                            <span className="text-gray-600">Cargando...</span>
+                        ) : proyecto ? (
+                            <>
+                                <span className="font-medium">Proyecto: {proyecto.Titulo}</span>
+                                <VersionSelector
+                                    proyectoId={proyecto.id}
+                                    onVersionSelect={loadVersion}
+                                    currentVersion={currentVersion}
+                                />
+                            </>
+                        ) : (
+                            <button
+                                onClick={() => setShowCreateProyectoModal(true)}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                            >
+                                Crear Proyecto
+                            </button>
+                        )}
+                    </div>
+                    <div className="space-x-2">
                         <button
-                            onClick={() => setShowCreateProyectoModal(true)}
+                            onClick={() => setShowSaveModal(true)}
+                            className={`px-4 py-2 ${proyectoId && proyecto
+                                ? "bg-green-600 text-white"
+                                : "bg-gray-400 text-gray-200 cursor-not-allowed"
+                                } rounded-md`}
+                            disabled={!proyectoId || !proyecto}
+                            title={!proyectoId || !proyecto ? "Primero debes crear un proyecto" : "Guardar versión"}
+                        >
+                            Guardar versión
+                        </button>
+                        <button
+                            onClick={() => SpringBootCodeGenerator(proyecto?.Titulo || "mi-proyecto", getContenido())}
                             className="px-4 py-2 bg-blue-600 text-white rounded-md"
                         >
-                            Crear Proyecto
+                            Exportar código
                         </button>
-                    )}
+                        <button
+                            onClick={() => setIsGeminiOpen(true)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-md"
+                        >
+                            Generar con IA
+                        </button>
+                    </div>
                 </div>
-                <div className="space-x-2">
-                    <button
-                        onClick={() => setShowSaveModal(true)}
-                        className={`px-4 py-2 ${proyectoId && proyecto
-                            ? "bg-green-600 text-white"
-                            : "bg-gray-400 text-gray-200 cursor-not-allowed"
-                            } rounded-md`}
-                        disabled={!proyectoId || !proyecto}
-                        title={!proyectoId || !proyecto ? "Primero debes crear un proyecto" : "Guardar versión"}
-                    >
-                        Guardar versión
-                    </button>
-                    <button
-                        onClick={() => SpringBootCodeGenerator(proyecto?.Titulo || "mi-proyecto", getContenido())}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md"
-                    >
-                        Exportar código
-                    </button>
+                <div className="flex-1 flex">
+                    {/* Sidebar simple */}
+                    <Sidebar onAddNode={addNode} onSelectRelation={(type) => {
+                        setRelationType(type as typeof relationType);
+                        setCreatingRelation(true);
+                    }} />
+                    {/* Lienzo principal */}
+                    <div className="flex-1">
+                        <ReactFlow
+                            nodes={nodes}
+                            edges={edges}
+                            onNodesChange={onNodesChange}
+                            onEdgesChange={onEdgesChange}
+                            onConnect={onConnect}
+                            onNodeClick={onNodeClick}
+                            onEdgeClick={onEdgeClick}
+                            fitView
+                            nodeTypes={nodeTypes}
+                            edgeTypes={edgeTypesMemo}
+                            connectionMode={ConnectionMode.Loose}
+                        >
+                            <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+                            <Controls />
+                            <MiniMap />
+                        </ReactFlow>
+                    </div>
                 </div>
-            </div>
-            <div className="flex-1 flex">
-                {/* Sidebar simple */}
-                <Sidebar onAddNode={addNode} onSelectRelation={(type) => {
-                    setRelationType(type as typeof relationType);
-                    setCreatingRelation(true);
-                }} />
-                {/* Lienzo principal */}
-                <div className="flex-1">
-                    <ReactFlow
-                        nodes={nodes}
-                        edges={edges}
-                        onNodesChange={onNodesChange}
-                        onEdgesChange={onEdgesChange}
-                        onConnect={onConnect}
-                        onNodeClick={onNodeClick}
-                        onEdgeClick={onEdgeClick}
-                        fitView
-                        nodeTypes={nodeTypes}
-                        edgeTypes={edgeTypesMemo}
-                        connectionMode={ConnectionMode.Loose}
-                    >
-                        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
-                        <Controls />
-                        <MiniMap />
-                    </ReactFlow>
-                </div>
-            </div>
 
-            {/* Modales */}
-            {proyecto && (
-                <SaveVersionModal
-                    isOpen={showSaveModal}
-                    onClose={() => setShowSaveModal(false)}
-                    contenido={getContenido()}
-                    proyectoId={proyecto.id}
+                {/* Modales */}
+                {proyecto && (
+                    <SaveVersionModal
+                        isOpen={showSaveModal}
+                        onClose={() => setShowSaveModal(false)}
+                        contenido={getContenido()}
+                        proyectoId={proyecto.id}
+                    />
+                )}
+
+                <CreateProyectoModal
+                    isOpen={showCreateProyectoModal}
+                    onClose={() => setShowCreateProyectoModal(false)}
+                    onSuccess={handleProyectoCreated}
                 />
-            )}
 
-            <CreateProyectoModal
-                isOpen={showCreateProyectoModal}
-                onClose={() => setShowCreateProyectoModal(false)}
-                onSuccess={handleProyectoCreated}
-            />
-
-            {/* Modal para editar relación */}
-            {selectedEdge && (
-                <EditRelationModal
-                    isOpen={showEditRelationModal}
-                    onClose={() => {
-                        setShowEditRelationModal(false);
-                        setSelectedEdge(null);
-                    }}
-                    relation={{
-                        id: selectedEdge.id,
-                        source: String(selectedEdge.source),
-                        target: String(selectedEdge.target),
-                        type: (selectedEdge.type || "association") as UMLRelationType,
-                        sourceCardinality: typeof selectedEdge.data?.sourceCardinality === "string" ? selectedEdge.data.sourceCardinality : "1",
-                        targetCardinality: typeof selectedEdge.data?.targetCardinality === "string" ? selectedEdge.data.targetCardinality : "*"
-                    }}
-                    onSave={handleSaveRelation}
-                    onDelete={handleDeleteRelation}
-                />
-            )}
-        </div>
+                {/* Modal para editar relación */}
+                {selectedEdge && (
+                    <EditRelationModal
+                        isOpen={showEditRelationModal}
+                        onClose={() => {
+                            setShowEditRelationModal(false);
+                            setSelectedEdge(null);
+                        }}
+                        relation={{
+                            id: selectedEdge.id,
+                            source: String(selectedEdge.source),
+                            target: String(selectedEdge.target),
+                            type: (selectedEdge.type || "association") as UMLRelationType,
+                            sourceCardinality: typeof selectedEdge.data?.sourceCardinality === "string" ? selectedEdge.data.sourceCardinality : "1",
+                            targetCardinality: typeof selectedEdge.data?.targetCardinality === "string" ? selectedEdge.data.targetCardinality : "*"
+                        }}
+                        onSave={handleSaveRelation}
+                        onDelete={handleDeleteRelation}
+                    />
+                )}
+            </div>
+        </DiagramProvider>
     );
 };

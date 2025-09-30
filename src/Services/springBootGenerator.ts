@@ -142,15 +142,21 @@ spring.jpa.properties.hibernate.format_sql=true
 }
 
 // Mapear tipos de atributos de frontend a tipos Java
-export function mapTypeToJava(frontendType: string): "String" | "Integer" | "Double" | "Boolean" | "LocalDate" | "String" {
-  const typeMap: Record<string, "String" | "Integer" | "Double" | "Boolean" | "LocalDate"> = {
-    string: "String",
-    Int: "Integer",
-    float: "Double",
-    boolean: "Boolean",
-    date: "LocalDate",
-  };
-  return typeMap[frontendType] ?? "String";
+export function mapTypeToJava(frontendType: string): "String" | "Integer" | "Double" | "Boolean" | "LocalDate" {
+  const normalized = (frontendType || "").toLowerCase();
+  if (normalized === "string") return "String";
+  if (normalized === "int") return "Integer";
+  if (normalized === "float") return "Double";
+  if (normalized === "boolean") return "Boolean";
+  if (normalized === "date" || normalized === "localdate") return "LocalDate";
+  return "String";
+}
+
+type AttrEither = { tipo?: string; type?: string };
+
+function isLocalDateAttr(a: AttrEither): boolean {
+  const t = (a.tipo ?? a.type ?? "").toLowerCase();
+  return t === "date" || t === "localdate";
 }
 
 function capFirst(s: string) { return s ? s[0].toUpperCase() + s.slice(1) : s; }
@@ -206,9 +212,11 @@ function inferJpaRelation(
 function generateImports(umlClass: UMLClass, relations: UMLRelation[]): string[] {
   const imports = new Set<string>();
   imports.add("import jakarta.persistence.*;");
+  console.log("atributos :", umlClass.atributos) 
+  const usesLocalDate = Array.isArray(umlClass.atributos) && (umlClass.atributos as unknown as AttrEither[]).some(isLocalDateAttr);
 
-  // tipos de atributos
-  if (umlClass.atributos.some(a => mapTypeToJava(a.tipo) === "LocalDate")) {
+  if (usesLocalDate) {
+    console.log("importando LocalDate");
     imports.add("import java.time.LocalDate;");
   }
 
