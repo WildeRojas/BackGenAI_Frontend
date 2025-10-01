@@ -147,7 +147,7 @@ export const Diagrama: React.FC = () => {
                     label: c.nombre, 
                     attributes: c.atributos.map(attr => ({ 
                         name: attr.nombre || attr.name, 
-                        type: attr.tipo  || attr.type
+                        type: attr.tipo || attr.type
                     }))
                 }
             }));

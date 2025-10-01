@@ -36,6 +36,8 @@ export interface proyectos {
 export interface UMLAttribute {
     nombre: string;
     tipo: "string" | "Int" | "float" | "boolean" | "date" | string;
+    name : string;
+    type: "string" | "Int" | "float" | "boolean" | "date" | string;
 }
 
 export interface UMLClass {
@@ -82,3 +84,5 @@ export interface proyectoVersion {
     Fecha_Creacion?: Date;
     Fecha_Actualizacion?: Date;
 }
+
+
