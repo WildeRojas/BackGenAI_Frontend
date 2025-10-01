@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
     ReactFlow,
@@ -21,7 +21,7 @@ import { SaveVersionModal } from "../../Components/SaveVersion";
 import { CreateProyectoModal } from "../../Components/CreateProyectoModal";
 import { getProyectoById } from "../../Services/Proyecto/Proyecto";
 import { EditRelationModal } from "./EditarRelation";
-import type { ProyectoVersionContenido, UMLClass, UMLRelation, UMLRelationType, proyectos, proyectoVersion } from "../../Interfaces/proyectos";
+import type { ProyectoVersionContenido, UMLClass, UMLRelation, UMLRelationType, proyectos, proyectoVersion, UMLAttribute } from "../../Interfaces/proyectos";
 import "@xyflow/react/dist/style.css";
 import { ClassNode } from "./Node";
 import type { NodeProps } from "@xyflow/react";
@@ -29,8 +29,9 @@ import { SpringBootCodeGenerator } from "../../Services/springBootGenerator";
 import { DiagramProvider } from "../../contexts/DiagramContext";
 import { Navbar } from "../../Components/Navbar";
 import { GeminiModal } from "../../Components/GeminiModal";
-
 import { VersionSelector } from '../../Components/ProyectosList';
+/*WebSocket*/
+import { connectWebSocket, disconnectWebSocket, sendMessage } from "../../Services/webSocket";
 
 // Nodos iniciales vacíos
 const initialNodes: Node[] = [];
@@ -79,7 +80,8 @@ export const Diagrama: React.FC = () => {
     const [proyecto, setProyecto] = useState<proyectos | null>(null);
     const [loading, setLoading] = useState(true);
     const [currentVersion, setCurrentVersion] = useState<proyectoVersion | null>(null);
-
+    const wsRef = useRef<WebSocket | null>(null);
+    const ignoreBroadcast = useRef(false);
     const [relationType, setRelationType] = useState<"association" | "inheritance" | "aggregation" | "composition">("association");
 
     // Estados para edición de relaciones
@@ -143,10 +145,10 @@ export const Diagrama: React.FC = () => {
                 id: c.id,
                 type: "classNode",
                 position: { x: c.position.x, y: c.position.y },
-                data: { 
-                    label: c.nombre, 
-                    attributes: c.atributos.map(attr => ({ 
-                        name: attr.nombre || attr.name, 
+                data: {
+                    label: c.nombre,
+                    attributes: c.atributos.map(attr => ({
+                        name: attr.nombre || attr.name,
                         type: attr.tipo || attr.type
                     }))
                 }
@@ -177,11 +179,11 @@ export const Diagrama: React.FC = () => {
             id: c.id,
             type: "classNode",
             position: { x: c.position.x, y: c.position.y },
-            data: { 
-                label: c.nombre, 
-                attributes: c.atributos.map(attr => ({ 
-                    name: attr.nombre, 
-                    type: attr.tipo 
+            data: {
+                label: c.nombre,
+                attributes: c.atributos.map(attr => ({
+                    name: attr.nombre,
+                    type: attr.tipo
                 }))
             }
         }));
@@ -303,7 +305,7 @@ export const Diagrama: React.FC = () => {
         }
     }, [selectedEdge, setEdges]);
 
-    const getContenido = (): ProyectoVersionContenido => ({
+    const getContenido = useCallback((): ProyectoVersionContenido => ({
         classes: nodes.map((n) => ({
             id: n.id,
             nombre: String(n.data.label),
@@ -318,7 +320,71 @@ export const Diagrama: React.FC = () => {
             sourceCardinality: typeof e.data?.sourceCardinality === "string" ? e.data.sourceCardinality : undefined,
             targetCardinality: typeof e.data?.targetCardinality === "string" ? e.data.targetCardinality : undefined
         }))
-    });
+    })
+        , [nodes, edges]);
+
+
+    /*Websocket funcion*/
+    useEffect(() => {
+        if (!proyectoId || isNaN(Number(proyectoId))) return;
+        let isMounted = true;
+        connectWebSocket(proyectoId).then((ws) => {
+            wsRef.current = ws;
+            ws.onmessage = (event: MessageEvent) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('WebSocket mensaje recibido:', data);
+                    if (data.type === 'diagram_updated' && data.diagram_data) {
+                        ignoreBroadcast.current = true;
+                        if (isMounted) {
+                            setNodes(data.diagram_data.classes.map((c: UMLClass) => ({
+                                id: c.id,
+                                type: "classNode",
+                                position: { x: c.position.x, y: c.position.y },
+                                data: {
+                                    label: c.nombre,
+                                    attributes: c.atributos.map((attr: UMLAttribute) => ({
+                                        name: attr.nombre || attr.name,
+                                        type: attr.tipo || attr.type
+                                    }))
+                                },
+                            })));
+                            setEdges(data.diagram_data.relations.map((r: UMLRelation) => ({
+                                id: r.id,
+                                source: r.source,
+                                target: r.target,
+                                type: r.type,
+                                data: {
+                                    sourceCardinality: r.sourceCardinality || "1",
+                                    targetCardinality: r.targetCardinality || "*"
+                                }
+                            })));
+                        }
+
+                    }
+                } catch (error) {
+                    console.error("Error parsing WebSocket message:", error);
+                }
+            };
+        });
+        return () => {
+            isMounted = false;
+            disconnectWebSocket();
+        };
+    }, [proyectoId, setNodes, setEdges]);
+
+    useEffect(() => {
+        if (!proyectoId || !wsRef.current || loading) return;
+        if (ignoreBroadcast.current) {
+            ignoreBroadcast.current = false;
+            return;
+        }
+        // Enviar los cambios al WebSocket
+        sendMessage({
+            type: "diagram_update", // ¡IMPORTANTE! Usa "diagram_update"
+            diagram_data: getContenido()
+        });
+    }, [nodes, edges, proyectoId, loading, getContenido]);
 
     const onNodeClick = (_: React.MouseEvent, node: Node) => {
         if (creatingRelation) {

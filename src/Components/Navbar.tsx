@@ -3,15 +3,16 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { User, Share2, LayoutDashboard, LogOut, Copy, Check } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
-import { connectWebSocket, sendMessage } from "../Services/webSocket";
+import { connectWebSocket } from "../Services/webSocket";
+import { useParams } from "react-router-dom";
 
 export const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
   const [showCollabMenu, setShowCollabMenu] = useState(false);
   const [collaborationLink, setCollaborationLink] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
-
+  const { proyectoId } = useParams();
 
   const handleLogout = () => {
     logout();
@@ -23,19 +24,11 @@ export const Navbar = () => {
   const generateCollaborationLink = async () => {
     try {
       // Generar un ID único para la sesión colaborativa
-      const sessionId = crypto.randomUUID();
-      const link = `${window.location.origin}/disenio?session=${sessionId}`;
+      const sessionId = proyectoId || Math.random().toString(36).substring(2, 10);
+      const link = `${window.location.origin}/diseño/${sessionId}`;
 
       // Conectar al WebSocket para la colaboración
       await connectWebSocket(sessionId);
-
-      // Enviar mensaje de nueva sesión
-      sendMessage({
-        type: 'session_created',
-        sessionId: sessionId,
-        user: user?.username || 'Usuario'
-      });
-
       setCollaborationLink(link);
       setShowCollabMenu(true);
     } catch (error) {
